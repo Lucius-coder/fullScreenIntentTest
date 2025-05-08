@@ -35,6 +35,8 @@ import androidx.core.content.ContextCompat
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import androidx.core.app.NotificationCompat
 private const val FULL_SCREEN_NOTIFICATION_CHANNEL_ID = "full_screen_channel_01"
 private const val FULL_SCREEN_NOTIFICATION_ID = 101
@@ -133,10 +135,11 @@ fun MainScreen(modifier: Modifier = Modifier) {
                 // Optional: Show a toast or a message if permission is denied
                 println("Notification permission DENIED. Prepare for disappointment.")
             } else {
+                createNotificationChannel(context)
                 println("Notification permission GRANTED. Let the spam begin!")
             }
         })
-
+    var toastMessage by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = modifier.fillMaxSize(), // Make the Column take the whole screen
@@ -146,6 +149,26 @@ fun MainScreen(modifier: Modifier = Modifier) {
 
         Button(
             onClick = {
+
+                val actionToPerform: () -> Unit = {
+                    // This is the action we want to delay
+                    println("10 second delay FINISHED. Attempting to show notification.")
+                    showFullScreenNotification(context)
+                }
+
+                val preActionChecksAndDelay: () -> Unit = {
+                    // Ensure channel is created before scheduling or showing notification
+                    createNotificationChannel(context)
+
+                    println("Button clicked. Scheduling notification in 10 seconds.")
+                    toastMessage = "After 10 seconds, fullscreen notification will appear..." // Set toast message
+
+                    // Use a Handler to delay the execution
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        actionToPerform()
+                    }, 10000) // 10000 milliseconds = 10 seconds
+                }
+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     if (!hasNotificationPermission) {
                         permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -158,9 +181,17 @@ fun MainScreen(modifier: Modifier = Modifier) {
                     showFullScreenNotification(context) // Call our new function
                 }
                 println("Button clicked! Prepare for glory... or a crash.")
+
+
             }
         ) {
             Text("Show notification with full screen")
+            toastMessage?.let { message ->
+                // Simple Toast for feedback. In a real app, you might use a Snackbar.
+                LaunchedEffect(message) { // LaunchedEffect to show toast only when message changes
+                    android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
+                    toastMessage = null // Reset toast message after showing
+                }}
         }
         // Optional: Display permission status
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
